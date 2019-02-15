@@ -25,7 +25,7 @@ def collect_vocabs(train_path, with_POS=False, with_NER=False):
         all_NERs = set()
     infile = open(train_path, 'rt')
     for line in infile:
-        line = line.decode('utf-8').strip()
+        line = line.strip()
         if line.startswith('-'):
             continue
         items = re.split("\t", line)
@@ -240,8 +240,9 @@ def main(FLAGS):
             trainDataStream, devDataStream, FLAGS, best_path
         )
 
+
 def enrich_options(options):
-    if not options.__dict__.has_key("in_format"):
+    if "in_format" not in options.__dict__:
         options.__dict__["in_format"] = 'tsv'
 
     return options

@@ -153,7 +153,8 @@ class SentenceMatchModelGraph(object):
         self.prob = tf.nn.softmax(logits)
         
         gold_matrix = tf.one_hot(self.truth, num_classes, dtype=tf.float32)
-        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=gold_matrix))
+        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
+            logits=logits, labels=tf.stop_gradient(gold_matrix)))
 
         correct = tf.nn.in_top_k(logits, self.truth, 1)
         self.eval_correct = tf.reduce_sum(tf.cast(correct, tf.int32))
