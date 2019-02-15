@@ -2,8 +2,9 @@
 from __future__ import print_function
 import numpy as np
 import re
+import logging
 
-# import math
+logger = logging.getLogger(__name__)
 
 
 class Vocab(object):
@@ -48,7 +49,6 @@ class Vocab(object):
             self.word2id[word] = cur_index
             self.id2word[cur_index] = word
 
-#         self.word_vecs = np.zeros((self.vocab_size+1, self.word_dim), dtype=np.float32) # the last dimension is all zero
         shape = (self.vocab_size + 1, self.word_dim)
         scale = 0.05
         self.word_vecs = np.array(
@@ -60,20 +60,18 @@ class Vocab(object):
     def fromMap(self, word2id, word_vecs, word_dim=100):
         self.word2id = word2id
         self.id2word = dict(
-            zip(word2id.values(),word2id.keys())
+            zip(word2id.values(), word2id.keys())
         )
 
-        self.vocab_size = len(word2id) 
-        self.word_dim = word_dim 
+        self.vocab_size = len(word2id)
+        self.word_dim = word_dim
         self.word_vecs = word_vecs
-
-
 
     def fromText(self, vec_path, voc=None):
         # load freq table and build index for each word
         self.word2id = {}
         self.id2word = {}
-        
+
         vec_file = open(vec_path, 'rt')
         header = vec_file.readline()
         self.vocab_size, self.word_dim = map(int, header.split())
@@ -82,25 +80,27 @@ class Vocab(object):
             line = line.strip()
             parts = line.split(' ')
             word = parts[0]
-            if (voc is not None) and (word not in voc): continue
+            if (voc is not None) and (word not in voc):
+                continue
             vector = np.array(parts[1:], dtype='float32')
             cur_index = len(self.word2id)
-            self.word2id[word] = cur_index 
+            self.word2id[word] = cur_index
             self.id2word[cur_index] = word
             word_vecs[cur_index] = vector
         vec_file.close()
 
         self.vocab_size = len(self.word2id)
-        self.word_vecs = np.zeros((self.vocab_size+1, self.word_dim), dtype=np.float32) # the last dimension is all zero
+        self.word_vecs = np.zeros(
+            (self.vocab_size + 1, self.word_dim),
+            dtype=np.float32)  # the last dimension is all zero
         for cur_index in range(self.vocab_size):
             self.word_vecs[cur_index] = word_vecs[cur_index]
-    
 
-    def fromText_format2(self, vec_path,voc=None,pre_word_vecs=None):
+    def fromText_format2(self, vec_path, voc=None, pre_word_vecs=None):
         # load freq table and build index for each word
         self.word2id = {}
         self.id2word = {}
-        
+
         vec_file = open(vec_path, 'rt')
         word_vecs = {}
         for line in vec_file:
@@ -108,8 +108,11 @@ class Vocab(object):
             parts = line.split('\t')
             cur_index = int(parts[0])
             word = parts[1]
-            vector = np.array(map(float,re.split('\\s+', parts[2])), dtype='float32')
-            self.word2id[word] = cur_index 
+            vector = np.array(
+                [float(x) for x in re.split('\\s+', parts[2])],
+                dtype='float32'
+            )
+            self.word2id[word] = cur_index
             self.id2word[cur_index] = word
             word_vecs[cur_index] = vector
             self.word_dim = vector.size
@@ -120,19 +123,20 @@ class Vocab(object):
         if pre_word_vecs is not None:
             self.word_vecs = pre_word_vecs
         else:
-            self.word_vecs = np.zeros((self.vocab_size+1, self.word_dim), dtype=np.float32) # the last dimension is all zero
+            self.word_vecs = np.zeros(
+                (self.vocab_size + 1, self.word_dim),
+                dtype=np.float32
+            )  # the last dimension is all zero
             for cur_index in range(self.vocab_size):
                 self.word_vecs[cur_index] = word_vecs[cur_index]
 
-
-    def fromText_format3(self, vec_path,voc=None):
+    def fromText_format3(self, vec_path, voc=None):
         # load freq table and build index for each word
         self.word2id = {}
         self.id2word = {}
-        
+
         vec_file = open(vec_path, 'rt')
-#         header = vec_file.readline()
-#         self.vocab_size, self.word_dim = map(int, header.split())
+
         word_vecs = {}
         for line in vec_file:
             if line[0] == line[1] == ' ':
@@ -142,38 +146,42 @@ class Vocab(object):
                 parts = line.split(' ')
                 word = parts[0]
             self.word_dim = len(parts[1:])
-            if (voc is not None) and (word not in voc): continue
+            if (voc is not None) and (word not in voc):
+                continue
             vector = np.array(parts[1:], dtype='float32')
             cur_index = len(self.word2id)
-            self.word2id[word] = cur_index 
+            self.word2id[word] = cur_index
             self.id2word[cur_index] = word
             word_vecs[cur_index] = vector
         vec_file.close()
 
         self.vocab_size = len(self.word2id)
-        self.word_vecs = np.zeros((self.vocab_size+1, self.word_dim), dtype=np.float32) # the last dimension is all zero
+        self.word_vecs = np.zeros(
+            (self.vocab_size + 1, self.word_dim),
+            dtype=np.float32)  # the last dimension is all zero
         for cur_index in range(self.vocab_size):
             self.word_vecs[cur_index] = word_vecs[cur_index]
 
-
-
-    def fromText_bak(self, vec_path,voc=None):
+    def fromText_bak(self, vec_path, voc=None):
         # load freq table and build index for each word
         self.word2id = {}
         self.id2word = {}
-        
+
         vec_file = open(vec_path, 'rt')
         header = vec_file.readline()
         self.vocab_size, self.word_dim = map(int, header.split())
-        self.word_vecs = np.zeros((self.vocab_size+1, self.word_dim), dtype=np.float32) # the last dimension is all zero
+        self.word_vecs = np.zeros(
+            (self.vocab_size + 1, self.word_dim),
+            dtype=np.float32)  # the last dimension is all zero
         for line in vec_file:
             line = line.strip()
             parts = line.split(' ')
             word = parts[0]
-            if (voc is not None) and (word not in voc): continue
+            if (voc is not None) and (word not in voc):
+                continue
             vector = np.array(parts[1:], dtype='float32')
             cur_index = len(self.word2id)
-            self.word2id[word] = cur_index 
+            self.word2id[word] = cur_index
             self.id2word[cur_index] = word
             self.word_vecs[cur_index] = vector
         vec_file.close()
@@ -186,7 +194,7 @@ class Vocab(object):
         self.id2word = {}
         for word in voc:
             curIndex = len(self.word2id)
-            self.word2id[word] = curIndex 
+            self.word2id[word] = curIndex
             self.id2word[curIndex] = word
 
         with open(fname, "rb") as f:
@@ -202,17 +210,20 @@ class Vocab(object):
                         word = ''.join(word)
                         break
                     if ch != '\n':
-                        word.append(ch)   
+                        word.append(ch)
                 if word in self.word2id.keys():
                     curIndex = self.word2id[word]
                 else:
                     curIndex = len(self.word2id)
-                    self.word2id[word] = curIndex 
+                    self.word2id[word] = curIndex
                     self.id2word[curIndex] = word
-                word_vecs[curIndex] = np.fromstring(f.read(binary_len), dtype='float32')  
+                word_vecs[curIndex] = np.fromstring(
+                    f.read(binary_len), dtype='float32')
 
         self.vocab_size = len(self.word2id)
-        self.word_vecs = np.random.uniform(low=-scale, high=scale, size=(self.vocab_size+1, self.word_dim)).astype('float32')
+        self.word_vecs = np.random.uniform(
+            low=-scale, high=scale,
+            size=(self.vocab_size + 1, self.word_dim)).astype('float32')
         self.word_vecs[self.vocab_size] = self.word_vecs[self.vocab_size] * 0.0
         for cur_index in word_vecs.keys():
             self.word_vecs[cur_index] = word_vecs[cur_index]
@@ -236,13 +247,14 @@ class Vocab(object):
                         word = ''.join(word)
                         break
                     if ch != '\n':
-                        word.append(ch)   
-                if word == '': continue
+                        word.append(ch)
+                if word == '':
+                    continue
                 curIndex = len(self.word2id)
-                self.word2id[word] = curIndex 
+                self.word2id[word] = curIndex
                 self.id2word[curIndex] = word
-                word_vecs[curIndex] = np.fromstring(f.read(binary_len), dtype='float32')  
-
+                word_vecs[curIndex] = np.fromstring(
+                    f.read(binary_len), dtype='float32')
         # add unkwords
         if voc is not None:
             for word in voc:
@@ -251,23 +263,30 @@ class Vocab(object):
                 if word in self.word2id:
                     continue
                 curIndex = len(self.word2id)
-                self.word2id[word] = curIndex 
+                self.word2id[word] = curIndex
                 self.id2word[curIndex] = word
-                word_vecs[curIndex] = np.random.uniform(low=-scale, high=scale, size=(self.word_dim,)).astype('float32') 
+                word_vecs[curIndex] = np.random.uniform(
+                    low=-scale, high=scale,
+                    size=(self.word_dim,)).astype('float32')
 
         self.vocab_size = len(self.word2id)
-        self.word_vecs = np.zeros((self.vocab_size+1, self.word_dim), dtype=np.float32) # the last dimension is all zero
+        self.word_vecs = np.zeros(
+            (self.vocab_size + 1, self.word_dim),
+            dtype=np.float32)  # the last dimension is all zero
         for cur_index in range(self.vocab_size):
-            if cur_index ==0 : continue
+            if cur_index == 0:
+                continue
             self.word_vecs[cur_index] = word_vecs[cur_index]
-        self.word_vecs[0] = np.random.uniform(low=-scale, high=scale, size=(self.word_dim,)).astype('float32') 
-    
-    def setWordvec(self,word_vecs):
+        self.word_vecs[0] = np.random.uniform(
+            low=-scale, high=scale,
+            size=(self.word_dim,)).astype('float32')
+
+    def setWordvec(self, word_vecs):
         self.word_vecs = word_vecs
 
     def hasWord(self, word):
         return word in self.word2id
-    
+
     def size(self):
         return len(self.word2id)
 
@@ -290,15 +309,17 @@ class Vocab(object):
         return None
 
     def to_index_sequence(self, sentence):
-#         sentence = sentence.strip().lower()
         sentence = sentence.strip()
         seq = []
         for word in re.split('\\s+', sentence):
             idx = self.getIndex(word)
-            if idx == None and self.__unk_mapping is not None and word in self.__unk_mapping:
+            if idx is None and \
+                self.__unk_mapping is not None and \
+                    word in self.__unk_mapping:
                 simWord = self.__unk_mapping[word]
                 idx = self.getIndex(simWord)
-            if idx == None: idx = self.vocab_size
+            if idx is None:
+                idx = self.vocab_size
             seq.append(idx)
         return seq
 
@@ -306,10 +327,13 @@ class Vocab(object):
         seq = []
         for word in words:
             idx = self.getIndex(word)
-            if idx == None and self.__unk_mapping is not None and word in self.__unk_mapping:
+            if idx is None and \
+                self.__unk_mapping is not None and \
+                    word in self.__unk_mapping:
                 simWord = self.__unk_mapping[word]
                 idx = self.getIndex(simWord)
-            if idx == None: idx = self.vocab_size
+            if idx is None:
+                idx = self.vocab_size
             seq.append(idx)
         return seq
 
@@ -321,10 +345,12 @@ class Vocab(object):
             for i in range(len(word)):
                 cur_char = word[i]
                 idx = self.getIndex(cur_char)
-                if idx == None and self.__unk_mapping is not None and cur_char in self.__unk_mapping:
+                if idx is None and self.__unk_mapping is not None and \
+                        cur_char in self.__unk_mapping:
                     simWord = self.__unk_mapping[cur_char]
                     idx = self.getIndex(simWord)
-                if idx == None: idx = self.vocab_size
+                if idx is None:
+                    idx = self.vocab_size
                 cur_seq.append(idx)
             if max_char_per_word != -1 and len(cur_seq) > max_char_per_word:
                 cur_seq = cur_seq[:max_char_per_word]
@@ -336,7 +362,8 @@ class Vocab(object):
         seq = []
         for word in re.split(' ', sentence):
             idx = self.getIndex(word)
-            if idx == None: continue
+            if idx is None:
+                continue
             seq.append(idx)
         return seq
 
@@ -348,7 +375,8 @@ class Vocab(object):
             sub_words = collect_char_ngram(word)
             for sub_word in sub_words:
                 idx = self.getIndex(sub_word)
-                if idx == None: continue
+                if idx is None:
+                    continue
                 seq.append(idx)
         return seq
 
@@ -359,7 +387,8 @@ class Vocab(object):
         seq = []
         for word in intersection_words:
             idx = self.getIndex(word)
-            if idx == None: continue
+            if idx is None:
+                continue
             seq.append(idx)
         return seq
 
@@ -369,10 +398,12 @@ class Vocab(object):
         total = 0.0
         for word in re.split(' ', sentence):
             cur_vec = self.getVector(word)
-            if cur_vec is None: continue
+            if cur_vec is None:
+                continue
             sent_vec += cur_vec
             total += 1.0
-        if total != 0.0: sent_vec /= total
+        if total != 0.0:
+            sent_vec /= total
         return sent_vec
 
     def dump_to_txt2(self, outpath):
@@ -380,8 +411,7 @@ class Vocab(object):
         for word in self.word2id.keys():
             cur_id = self.word2id[word]
             cur_vector = self.getVector(word)
-#             print(word)
-            word= word.encode('utf-8')
+            word = word.encode('utf-8')
             outline = "{}\t{}\t{}".format(cur_id, word, vec2string(cur_vector))
             outfile.write(outline + "\n")
         outfile.close()
@@ -390,10 +420,11 @@ class Vocab(object):
         outfile = open(outpath, 'wt')
         for word in self.word2id.keys():
             cur_vector = self.getVector(word)
-            word= word.encode('utf-8')
+            word = word.encode('utf-8')
             outline = word + " {}".format(vec2string(cur_vector))
             outfile.write(outline + "\n")
         outfile.close()
+
 
 def vec2string(val):
     result = ""
@@ -402,21 +433,24 @@ def vec2string(val):
     return result.strip()
 
 
-def collect_all_ngram(words, n=2): 
+def collect_all_ngram(words, n=2):
     all_ngrams = set()
-    for i in range(len(words)-n):
-        cur_ngram = words[i:i+n]
+    for i in range(len(words) - n):
+        cur_ngram = words[i:i + n]
         all_ngrams.add(' '.join(cur_ngram))
     return all_ngrams
 
+
 def collect_char_ngram(word, n=3):
     all_words = []
-    if len(word)<=n: all_words.append(word)
+    if len(word) <= n:
+        all_words.append(word)
     else:
-        for i in range(len(word)-n+1):
-            cur_word = word[i:i+3]
+        for i in range(len(word) - n + 1):
+            cur_word = word[i:i + 3]
             all_words.append(cur_word)
     return all_words
+
 
 def to_char_ngram_sequence(sentence, n=3):
     seq = []
@@ -426,17 +460,18 @@ def to_char_ngram_sequence(sentence, n=3):
         seq.extend(sub_words)
     return ' '.join(seq)
 
+
 def collectVoc(trainpath):
     vocab = set()
-    inputFile = file(trainpath, 'rt')
-    for line in inputFile:
-        line = line.strip()
-        label, sentence = re.split('\t', line)
-        sentence = sentence.lower()
-        for word in re.split(' ', sentence):
-            vocab.add(word)
-    inputFile.close()
+    with open(trainpath, "r") as inputFile:
+        for line in inputFile:
+            line = line.strip()
+            label, sentence = re.split('\t', line)
+            sentence = sentence.lower()
+            for word in re.split(' ', sentence):
+                vocab.add(word)
     return vocab
+
 
 def collect_word_count(sentences, unk_num=1):
     word_count_map = {}
@@ -451,13 +486,15 @@ def collect_word_count(sentences, unk_num=1):
     for word in word_count_map.keys():
         count = word_count_map.get(word)
         word_count_list.append((count, word))
-    
-    word_count_list = sorted(word_count_list,key=(lambda a:a[0]), reverse=True)
-#     for i in range(50):
-#         word, count = word_count_list[i]
-#         print('{}\t{}'.format(word, count))
-#     return word_count_list
-    return [word for count, word in word_count_list if count>unk_num ]
+
+    word_count_list = sorted(
+        word_count_list,
+        key=(lambda a: a[0]), reverse=True)
+    return [
+        word for count, word in word_count_list
+        if count > unk_num
+    ]
+
 
 def collect_word_count_with_max_vocab(sentences, max_vocab=600000):
     word_count_map = {}
@@ -472,27 +509,25 @@ def collect_word_count_with_max_vocab(sentences, max_vocab=600000):
     for word in word_count_map.keys():
         count = word_count_map.get(word)
         word_count_list.append((count, word))
-    
-    word_count_list = sorted(word_count_list,key=(lambda a:a[0]), reverse=True)
-#     for i in range(50):
-#         word, count = word_count_list[i]
-#         print('{}\t{}'.format(word, count))
-#     return word_count_list
-#     return [word for count, word in word_count_list if count>unk_num ]
-    if len(word_count_list)<max_vocab: max_vocab = len(word_count_list)
+
+    word_count_list = sorted(
+        word_count_list, key=(lambda a: a[0]), reverse=True)
+
+    if len(word_count_list) < max_vocab:
+        max_vocab = len(word_count_list)
     return [word for count, word in word_count_list[:max_vocab]]
 
-def read_all_sentences(inpath):  
+def read_all_sentences(inpath):
     all_sentences = []
-    in_file = file(inpath, 'rt')
-    for line in in_file:
-        if line.startswith('<'): continue
-        line = line.strip().lower()
-        sentences = re.split('\t', line)
-        for sentence in sentences:
-            sentence = sentence.strip()
-            all_sentences.append(sentence)
-    in_file.close()
+    with open(inpath, "r") as in_file:
+        for line in in_file:
+            if line.startswith('<'):
+                continue
+            line = line.strip().lower()
+            sentences = re.split('\t', line)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                all_sentences.append(sentence)
     return all_sentences
 
 def read_sparse_features(inpath, threshold=0.0):  
@@ -501,18 +536,20 @@ def read_sparse_features(inpath, threshold=0.0):
     for line in in_file:
         line = line.strip().lower()
         items = re.split('\t', line)
-        if len(items)!=2: continue
+        if len(items)!=2:
+            continue
         (sparse_feature, count) = items
         count = float(count)
-        if count< threshold: continue
+        if count< threshold:
+            continue
         sparse_features.append(sparse_feature)
     in_file.close()
     return sparse_features
 
 def build_word_index_file(word_vec_path, out_path):
-    print('Loading word vectors ... ')
+    logger.info('Loading word vectors ... ')
     vocab = Vocab(word_vec_path)
-    print('Word_vecs shape: ', vocab.word_vecs.shape)
+    logger.info('Word_vecs shape: ', vocab.word_vecs.shape)
     word2id = vocab.word2id
     out_file = open(out_path,'wt')
     out_file.write('{}\t{}\n'.format(len(word2id), vocab.word_dim))
@@ -520,6 +557,8 @@ def build_word_index_file(word_vec_path, out_path):
         wid = word2id[word]
         out_file.write('{}\t{}\n'.format(word, wid))
     out_file.close()
+
+
 def load_word_index(index_path):
     word2id = {}
     in_file = open(index_path, 'rt')
@@ -541,37 +580,4 @@ def load_word_index(index_path):
     return (vocab_size, word_dim, word2id)
 
 if __name__ == '__main__':
-    '''# load word vectors
-    print('Loading word vectors ... ', end='')
-    wordvec_path = '/u/zhigwang/zhigwang1/learn2rank/english_100_crop.bin'
-    vocab = Vocab(wordvec_path)
-    print('DONE!')
-#     print(vocab.word_dim)
-    print(vocab.to_index_sequence("usaa and ibm are partner ."))
-    # '''
-    '''
-    while True:
-        word = raw_input('Please input your word: ')
-        if word == '=exit=':
-            break
-        pq = vocab.analogy(word)
-        if pq is not None:
-            while not pq.isEmpty():
-                print(pq.pop())
-    '''
-    
-    ''' # rank word based on count
-    in_path = '/u/zhigwang/zhigwang1/paraphrase/data/paraphrase_train.tsv'
-    sentences = read_all_sentences(in_path)
-    words = collect_word_count(sentences)
-    [print(word) for word in words]
-    '''
-    
-    # build word vec index
-    word_vec_path = '/u/zhigwang/zhigwang1/learn2rank/data/comp7.0/wordvec_crop.bin'
-    out_path = '/u/zhigwang/zhigwang1/learn2rank/models/vocab'
-    build_word_index_file(word_vec_path, out_path)
-    print('DONE!')
-
-
-
+    pass

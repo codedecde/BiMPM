@@ -228,13 +228,21 @@ def calcuate_attention(
             atten_v = tf.get_variable(
                 "atten_v", [1, att_dim], dtype=tf.float32)
             atten_value_1 = tf.expand_dims(
-                atten_value_1, axis=2, name="atten_value_1")  # [batch_size, len_1, 'x', feature_dim]
+                atten_value_1, axis=2, name="atten_value_1")
+            # [batch_size, len_1, 'x', feature_dim]
             atten_value_2 = tf.expand_dims(
-                atten_value_2, axis=1, name="atten_value_2")  # [batch_size, 'x', len_2, feature_dim]
-            atten_value = atten_value_1 + atten_value_2  # + tf.expand_dims(tf.expand_dims(tf.expand_dims(atten_b, axis=0), axis=0), axis=0)
+                atten_value_2, axis=1, name="atten_value_2")
+            # [batch_size, 'x', len_2, feature_dim]
+            atten_value = atten_value_1 + atten_value_2
+            # + tf.expand_dims(
+            #     tf.expand_dims(tf.expand_dims(atten_b, axis=0), axis=0),
+            #       axis=0)
             atten_value = nn_ops.bias_add(atten_value, atten_b)
-            atten_value = tf.tanh(atten_value)  # [batch_size, len_1, len_2, feature_dim]
-            atten_value = tf.reshape(atten_value, [-1, att_dim]) * atten_v  # tf.expand_dims(atten_v, axis=0) # [batch_size*len_1*len_2, feature_dim]
+            atten_value = tf.tanh(atten_value)
+            # [batch_size, len_1, len_2, feature_dim]
+            atten_value = tf.reshape(atten_value, [-1, att_dim]) * atten_v
+            # tf.expand_dims(atten_v, axis=0)
+            # [batch_size*len_1*len_2, feature_dim]
             atten_value = tf.reduce_sum(atten_value, axis=-1)
             atten_value = tf.reshape(atten_value, [batch_size, len_1, len_2])
         else:
@@ -292,7 +300,8 @@ def cal_relevancy_matrix(in_question_repres, in_passage_repres):
     in_passage_repres_tmp = tf.expand_dims(
         in_passage_repres, 2)  # [batch_size, passage_len, 1, dim]
     relevancy_matrix = cosine_distance(
-        in_question_repres_tmp,in_passage_repres_tmp)  # [batch_size, passage_len, question_len]
+        in_question_repres_tmp, in_passage_repres_tmp)
+    # [batch_size, passage_len, question_len]
     return relevancy_matrix
 
 

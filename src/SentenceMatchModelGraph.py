@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import tensorflow as tf
-import layer_utils
-import match_utils
+import src.layer_utils as layer_utils
+import src.match_utils as match_utils
 
 
 class SentenceMatchModelGraph(object):

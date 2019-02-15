@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import argparse
 import os
 import sys
@@ -7,11 +7,17 @@ import time
 import re
 import tensorflow as tf
 import json
+import logging
+import os
+import tqdm
 
-from vocab_utils import Vocab
-from SentenceMatchDataStream import SentenceMatchDataStream
-from SentenceMatchModelGraph import SentenceMatchModelGraph
-import namespace_utils
+from src.vocab_utils import Vocab
+from src.SentenceMatchDataStream import SentenceMatchDataStream
+from src.SentenceMatchModelGraph import SentenceMatchModelGraph
+# import src.namespace_utils
+from src.utils import setup_output_dir
+
+logger = logging.getLogger(__name__)
 
 
 def collect_vocabs(train_path, with_POS=False, with_NER=False):
@@ -100,13 +106,14 @@ def train(
 ):
     best_accuracy = -1
     for epoch in range(options.max_epochs):
-        print('Train in epoch %d' % epoch)
+        logger.info('Epoch ({0} / {1})'.format(
+            epoch + 1, options.max_epochs))
         # training
         trainDataStream.shuffle()
         num_batch = trainDataStream.get_num_batch()
         start_time = time.time()
         total_loss = 0
-        for batch_index in range(num_batch):  # for each batch
+        for batch_index in tqdm.tqdm(range(num_batch)):
             cur_batch = trainDataStream.get_batch(batch_index)
             feed_dict = train_graph.create_feed_dict(
                 cur_batch, is_training=True)
@@ -115,20 +122,16 @@ def train(
                 feed_dict=feed_dict
             )
             total_loss += loss_value
-            if batch_index % 100 == 0:
-                print('{} '.format(batch_index), end="")
-                sys.stdout.flush()
 
-        print()
         duration = time.time() - start_time
-        print('Epoch %d: loss = %.4f (%.3f sec)' %
-              (epoch, total_loss / num_batch, duration))
+        logger.info('Epoch %d: loss = %.4f (%.3f sec)' %
+                    (epoch, total_loss / num_batch, duration))
         # evaluation
         start_time = time.time()
         acc = evaluation(sess, valid_graph, devDataStream)
         duration = time.time() - start_time
-        print("Accuracy: %.2f" % acc)
-        print('Evaluation time: %.3f sec' % (duration))
+        logger.info("Accuracy: %.2f" % acc)
+        logger.info('Evaluation time: %.3f sec' % (duration))
         if acc >= best_accuracy:
             best_accuracy = acc
             saver.save(sess, best_path)
@@ -138,69 +141,66 @@ def main(FLAGS):
     train_path = FLAGS.train_path
     dev_path = FLAGS.dev_path
     word_vec_path = FLAGS.word_vec_path
-    log_dir = FLAGS.model_dir
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-
-    path_prefix = log_dir + "/SentenceMatch.{}".format(FLAGS.suffix)
-
-    namespace_utils.save_namespace(FLAGS, path_prefix + ".config.json")
+    log_dir = FLAGS.base_output_dir
 
     # build vocabs
     word_vocab = Vocab(word_vec_path, fileformat='txt3')
 
-    best_path = path_prefix + '.best.model'
-    char_path = path_prefix + ".char_vocab"
-    label_path = path_prefix + ".label_vocab"
+    best_path = os.path.join(
+        log_dir, "models", f'SentenceMatch.{FLAGS.suffix}.best.model'
+    )
+    char_path = os.path.join(
+        log_dir, "vocab", f"SentenceMatch.{FLAGS.suffix}.char_vocab"
+    )
+    label_path = os.path.join(
+        log_dir, "vocab", f"SentenceMatch.{FLAGS.suffix}.label_vocab"
+    )
     has_pre_trained_model = False
     char_vocab = None
     if os.path.exists(best_path + ".index"):
         has_pre_trained_model = True
-        print('Loading vocabs from a pre-trained model ...')
+        logger.info('Loading vocabs from a pre-trained model ...')
         label_vocab = Vocab(label_path, fileformat='txt2')
         if FLAGS.with_char:
             char_vocab = Vocab(char_path, fileformat='txt2')
     else:
-        print('Collecting words, chars and labels ...')
+        logger.info('Collecting words, chars and labels ...')
         (all_words, all_chars, all_labels, all_POSs, all_NERs) = \
             collect_vocabs(train_path)
-        print('Number of words: {}'.format(len(all_words)))
+        logger.info('Number of words: {}'.format(len(all_words)))
         label_vocab = Vocab(fileformat='voc', voc=all_labels, dim=2)
         label_vocab.dump_to_txt2(label_path)
 
         if FLAGS.with_char:
-            print('Number of chars: {}'.format(len(all_chars)))
+            logger.info('Number of chars: {}'.format(len(all_chars)))
             char_vocab = Vocab(
                 fileformat='voc', voc=all_chars, dim=FLAGS.char_emb_dim)
             char_vocab.dump_to_txt2(char_path)
 
-    print('word_vocab shape is {}'.format(word_vocab.word_vecs.shape))
+    logger.info('word_vocab shape is {}'.format(word_vocab.word_vecs.shape))
     num_classes = label_vocab.size()
-    print("Number of labels: {}".format(num_classes))
-    sys.stdout.flush()
+    logger.info("Number of labels: {}".format(num_classes))
 
-    print('Build SentenceMatchDataStream ... ')
+    logger.info('Build SentenceMatchDataStream ... ')
     trainDataStream = SentenceMatchDataStream(
         train_path, word_vocab=word_vocab, char_vocab=char_vocab,
         label_vocab=label_vocab, isShuffle=True, isLoop=True, isSort=True,
         options=FLAGS
     )
-    print('Number of instances in trainDataStream: {}'.format(
+    logger.info('Number of instances in trainDataStream: {}'.format(
         trainDataStream.get_num_instance()))
-    print('Number of batches in trainDataStream: {}'.format(
+    logger.info('Number of batches in trainDataStream: {}'.format(
         trainDataStream.get_num_batch()))
-    sys.stdout.flush()
 
     devDataStream = SentenceMatchDataStream(
         dev_path, word_vocab=word_vocab, char_vocab=char_vocab,
         label_vocab=label_vocab,
         isShuffle=False, isLoop=True, isSort=True, options=FLAGS
     )
-    print('Number of instances in devDataStream: {}'.format(
+    logger.info('Number of instances in devDataStream: {}'.format(
         devDataStream.get_num_instance()))
-    print('Number of batches in devDataStream: {}'.format(
+    logger.info('Number of batches in devDataStream: {}'.format(
         devDataStream.get_num_batch()))
-    sys.stdout.flush()
 
     init_scale = 0.01
     with tf.Graph().as_default():
@@ -223,16 +223,15 @@ def main(FLAGS):
         for var in tf.global_variables():
             if "word_embedding" in var.name:
                 continue
-#             if not var.name.startswith("Model"): continue
             vars_[var.name.split(":")[0]] = var
         saver = tf.train.Saver(vars_)
 
         sess = tf.Session()
         sess.run(initializer)
         if has_pre_trained_model:
-            print("Restoring model from " + best_path)
+            logger.info("Restoring model from " + best_path)
             saver.restore(sess, best_path)
-            print("DONE!")
+            logger.info("DONE!")
 
         # training
         train(
@@ -366,14 +365,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--config_path', type=str, help='Configuration file.')
 
-#     print("CUDA_VISIBLE_DEVICES " + os.environ['CUDA_VISIBLE_DEVICES'])
+#     logger.info("CUDA_VISIBLE_DEVICES " + os.environ['CUDA_VISIBLE_DEVICES'])
     args, unparsed = parser.parse_known_args()
-    if args.config_path is not None:
-        print('Loading the configuration from ' + args.config_path)
-        FLAGS = namespace_utils.load_namespace(args.config_path)
-    else:
-        FLAGS = args
-    sys.stdout.flush()
+    FLAGS = setup_output_dir(args, "INFO")
 
     # enrich arguments to backwards compatibility
     FLAGS = enrich_options(FLAGS)

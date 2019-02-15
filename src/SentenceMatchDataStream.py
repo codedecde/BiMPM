@@ -140,7 +140,6 @@ class SentenceMatchDataStream(object):
             self.cur_pointer = 0
             if self.isShuffle:
                 np.random.shuffle(self.index_array)
-#         print('{} '.format(self.index_array[self.cur_pointer]))
         cur_batch = self.batches[self.index_array[self.cur_pointer]]
         self.cur_pointer += 1
         return cur_batch
@@ -171,17 +170,26 @@ class InstanceBatch(object):
         self.question_len = 0
         self.passage_len = 0
 
-        self.question_lengths = []  # tf.placeholder(tf.int32, [None])
-        self.in_question_words = []  # tf.placeholder(tf.int32, [None, None]) # [batch_size, question_len]
-        self.passage_lengths = []  # tf.placeholder(tf.int32, [None])
-        self.in_passage_words = []  # tf.placeholder(tf.int32, [None, None]) # [batch_size, passage_len]
-        self.label_truth = []  # [batch_size]
+        self.question_lengths = []
+        # tf.placeholder(tf.int32, [None])
+        self.in_question_words = []
+        # tf.placeholder(tf.int32, [None, None]) # [batch_size, question_len]
+        self.passage_lengths = []
+        # tf.placeholder(tf.int32, [None])
+        self.in_passage_words = []
+        # tf.placeholder(tf.int32, [None, None]) # [batch_size, passage_len]
+        self.label_truth = []
+        # [batch_size]
 
         if with_char:
-            self.in_question_chars = []  # tf.placeholder(tf.int32, [None, None, None])  # [batch_size, question_len, q_char_len]
-            self.question_char_lengths = []  # tf.placeholder(tf.int32, [None, None])  # [batch_size, question_len]
-            self.in_passage_chars = []  # tf.placeholder(tf.int32, [None, None, None])  # [batch_size, passage_len, p_char_len]
-            self.passage_char_lengths = []  # tf.placeholder(tf.int32, [None, None])  # [batch_size, passage_len]
+            self.in_question_chars = []
+            # tf.placeholder(tf.int32, [None, None, None])  # [batch_size, question_len, q_char_len]
+            self.question_char_lengths = []
+            # tf.placeholder(tf.int32, [None, None])  # [batch_size, question_len]
+            self.in_passage_chars = []
+            # tf.placeholder(tf.int32, [None, None, None])  # [batch_size, passage_len, p_char_len]
+            self.passage_char_lengths = []
+            # tf.placeholder(tf.int32, [None, None])  # [batch_size, passage_len]
 
         for (label, sentence1, sentence2,
              label_id, word_idx_1, word_idx_2,

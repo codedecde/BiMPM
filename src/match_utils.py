@@ -1,5 +1,6 @@
+from __future__ import absolute_import
 import tensorflow as tf
-import layer_utils
+import src.layer_utils as layer_utils
 
 eps = 1e-6
 def cosine_distance(y1,y2):
