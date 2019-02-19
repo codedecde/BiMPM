@@ -67,14 +67,14 @@ def evaluation(
     sess, valid_graph, devDataStream,
     outpath=None, label_vocab=None
 ):
-    if outpath is not None:
-        result_json = {}
+    result_json = {}
     total = 0
     correct = 0
     for batch_index in range(devDataStream.get_num_batch()):  # for each batch
         cur_batch = devDataStream.get_batch(batch_index)
         total += cur_batch.batch_size
-        feed_dict = valid_graph.create_feed_dict(cur_batch, is_training=True)
+        feed_dict = valid_graph.create_feed_dict(cur_batch, is_training=False)
+        import pdb; pdb.set_trace()
         [cur_correct, probs, predictions] = sess.run(
             [valid_graph.eval_correct, valid_graph.prob,
              valid_graph.predictions],
@@ -94,7 +94,7 @@ def evaluation(
                     "probs": output_probs(probs[i], label_vocab),
                 }
     accuracy = correct / float(total) * 100
-    if outpath is not None:
+    if outpath is not None and outpath != "":
         with open(outpath, 'w') as outfile:
             json.dump(result_json, outfile)
     return accuracy
@@ -105,36 +105,45 @@ def train(
     trainDataStream, devDataStream, options, best_path
 ):
     best_accuracy = -1
-    for epoch in range(options.max_epochs):
-        logger.info('Epoch ({0} / {1})'.format(
-            epoch + 1, options.max_epochs))
-        # training
-        trainDataStream.shuffle()
-        num_batch = trainDataStream.get_num_batch()
-        start_time = time.time()
-        total_loss = 0
-        for batch_index in tqdm.tqdm(range(num_batch)):
-            cur_batch = trainDataStream.get_batch(batch_index)
-            feed_dict = train_graph.create_feed_dict(
-                cur_batch, is_training=True)
-            _, loss_value = sess.run(
-                [train_graph.train_op, train_graph.loss],
-                feed_dict=feed_dict
-            )
-            total_loss += loss_value
+    model_path = "/home/scratch/bpatra/paraphrase-detection/Experiments/Quora/run-1/models/SentenceMatch.quora.best.model"
+    saver.restore(sess, model_path)
+    acc = evaluation(sess, valid_graph, devDataStream)
+    logger.info(f"Dev Accuracy found by loading model: {acc:2.2f}")
+    # for epoch in range(options.max_epochs):
+    #     logger.info('Epoch ({0} / {1})'.format(
+    #         epoch + 1, options.max_epochs))
+    #     # training
+    #     trainDataStream.shuffle()
+    #     num_batch = trainDataStream.get_num_batch()
+    #     start_time = time.time()
+    #     total_loss = 0
+    #     for batch_index in tqdm.tqdm(range(num_batch)):
+    #         cur_batch = trainDataStream.get_batch(batch_index)
+    #         feed_dict = train_graph.create_feed_dict(
+    #             cur_batch, is_training=True)
+    #         _, loss_value = sess.run(
+    #             [train_graph.train_op, train_graph.loss],
+    #             feed_dict=feed_dict
+    #         )
+    #         total_loss += loss_value
 
-        duration = time.time() - start_time
-        logger.info('Epoch %d: loss = %.4f (%.3f sec)' %
-                    (epoch, total_loss / num_batch, duration))
-        # evaluation
-        start_time = time.time()
-        acc = evaluation(sess, valid_graph, devDataStream)
-        duration = time.time() - start_time
-        logger.info("Accuracy: %.2f" % acc)
-        logger.info('Evaluation time: %.3f sec' % (duration))
-        if acc >= best_accuracy:
-            best_accuracy = acc
-            saver.save(sess, best_path)
+    #     duration = time.time() - start_time
+    #     logger.info('Epoch %d: loss = %.4f (%.3f sec)' %
+    #                 (epoch, total_loss / num_batch, duration))
+    #     # evaluation
+    #     start_time = time.time()
+    #     acc = evaluation(sess, valid_graph, devDataStream)
+    #     duration = time.time() - start_time
+    #     logger.info("Accuracy: %.2f" % acc)
+    #     logger.info('Evaluation time: %.3f sec' % (duration))
+    #     if acc >= best_accuracy:
+    #         best_accuracy = acc
+    #         saver.save(sess, best_path)
+    #         # Sanity check
+    #     saver.restore(sess, best_path)
+    #     logger.info("Best model reloaded")
+    #     acc2 = evaluation(sess, valid_graph, devDataStream)
+    #     logger.info(f"{best_accuracy} {acc2}")
 
 
 def main(FLAGS):

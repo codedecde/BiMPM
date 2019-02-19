@@ -68,22 +68,23 @@ if __name__ == '__main__':
         initializer = tf.random_uniform_initializer(-init_scale, init_scale)
         global_step = tf.train.get_or_create_global_step()
         with tf.variable_scope("Model", reuse=False, initializer=initializer):
-            valid_graph = SentenceMatchModelGraph(num_classes, word_vocab=word_vocab, char_vocab=char_vocab,
-                                                  is_training=False, options=options)
+            valid_graph = SentenceMatchModelGraph(
+                num_classes, word_vocab=word_vocab, char_vocab=char_vocab,
+                is_training=False, options=options
+            )
 
         initializer = tf.global_variables_initializer()
         vars_ = {}
         for var in tf.global_variables():
             if "word_embedding" in var.name:
                 continue
-            if not var.name.startswith("Model"):
-                continue
+            # if not var.name.startswith("Model"):
+            #     continue
             vars_[var.name.split(":")[0]] = var
         saver = tf.train.Saver(vars_)
 
         sess = tf.Session()
         sess.run(initializer)
-        logger.info("Restoring model from " + best_path)
         logger.info(f"{best_path}")
         saver.restore(sess, best_path)
         logger.info("DONE!")
