@@ -18,6 +18,7 @@ from allennlp.training.metrics import CategoricalAccuracy
 from allennlp.common.params import Params
 
 from pytorch_models.model.bimpm_matching import BiMpmMatching
+from pytorch_models.commons.utils import to_numpy
 
 
 @Model.register("bimpm")
@@ -200,16 +201,22 @@ class BiMpm(Model):
         return output_dict
 
     @overrides
-    def decode(self, output_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def decode(
+        self, output_dict: Dict[str, torch.Tensor]
+    ) -> Dict[str, torch.Tensor]:
         """
-        Converts indices to string labels, and adds a ``"label"`` key to the result.
+        Converts indices to string labels, and adds a ``"label"``
+        key to the result.
         """
-        predictions = output_dict["probs"].cpu().data.numpy()
-        argmax_indices = numpy.argmax(predictions, axis=-1)
+        return_dict = {}
+        for key in output_dict:
+            return_dict[key] = to_numpy(
+                output_dict[key], output_dict[key].is_cuda)
+        argmax_indices = numpy.argmax(return_dict["probs"], axis=-1)
         labels = [self.vocab.get_token_from_index(x, namespace="labels")
                   for x in argmax_indices]
-        output_dict['label'] = labels
-        return output_dict
+        return_dict['label'] = labels
+        return return_dict
 
     @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:

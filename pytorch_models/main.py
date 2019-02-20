@@ -127,6 +127,8 @@ def main():
     # Trainer
     logger.info("Starting the training process")
 
+    serial_dir = os.path.join(serial_dir, "models")
+
     trainer = Trainer.from_params(
         model=model,
         serialization_dir=serial_dir,
