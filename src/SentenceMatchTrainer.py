@@ -74,7 +74,6 @@ def evaluation(
         cur_batch = devDataStream.get_batch(batch_index)
         total += cur_batch.batch_size
         feed_dict = valid_graph.create_feed_dict(cur_batch, is_training=False)
-        import pdb; pdb.set_trace()
         [cur_correct, probs, predictions] = sess.run(
             [valid_graph.eval_correct, valid_graph.prob,
              valid_graph.predictions],
@@ -107,8 +106,9 @@ def train(
     best_accuracy = -1
     model_path = "/home/scratch/bpatra/paraphrase-detection/Experiments/Quora/run-1/models/SentenceMatch.quora.best.model"
     saver.restore(sess, model_path)
-    acc = evaluation(sess, valid_graph, devDataStream)
-    logger.info(f"Dev Accuracy found by loading model: {acc:2.2f}")
+    for _ in range(20):
+        acc = evaluation(sess, valid_graph, devDataStream)
+        logger.info(f"Dev Accuracy found by loading model: {acc:2.2f}")
     # for epoch in range(options.max_epochs):
     #     logger.info('Epoch ({0} / {1})'.format(
     #         epoch + 1, options.max_epochs))
