@@ -3,7 +3,7 @@ import os
 import torch
 import logging
 from collections import OrderedDict
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 from allennlp.common.tqdm import Tqdm
 from allennlp.common.params import Params
@@ -157,8 +157,31 @@ class BaseModelRunner(object):
         return self.process_instances(instances)
 
     def compare_sentences(self, sent_1: str, sent_2: str, label: str = None) -> List[Dict[str, Any]]:
-        instance = self._reader.text_to_instance(premise=sent_1, hypothesis=sent_2, label=label)
+        instance = self._reader.text_to_instance(
+            premise=sent_1, hypothesis=sent_2, label=label
+        )
         return self.process_instances([instance])
+
+    def process_text_list(
+        self,
+        data_list: List[Tuple[str, str, Optional[str]]]
+    ) -> List[Dict[str, Any]]:
+        instance_list = []
+        for example in data_list:
+            premise, hypothesis, label = None, None, None
+            if len(example) == 2:
+                premise = example[0]
+                hypothesis = example[1]
+            elif len(example) == 3:
+                premise, hypothesis, label = example
+            else:
+                raise RuntimeError("Do not understand format")
+            instance = self._reader.text_to_instance(
+                premise=premise, hypothesis=hypothesis,
+                label=label
+            )
+            instance_list.append(instance)
+        return self.process_instances(instance_list)
 
     @classmethod
     def load_from_dir(cls, base_dir, base_embed_dir=None):
@@ -193,24 +216,7 @@ if __name__ == "__main__":
         ("today is fine", "tomorrow is fine")
     ]
     # A little more efficient comparisons
-    instance_list = []
-    reader = runner.get_reader()
-    for example in examples:
-        premise, hypothesis, label = None, None, None
-        if len(example) == 2:
-            premise = example[0]
-            hypothesis = example[1]
-        elif len(example) == 3:
-            premise, hypothesis, label = example
-        else:
-            raise RuntimeError("Do not understand format")
-        instance = reader.text_to_instance(
-            premise=premise, hypothesis=hypothesis,
-            label=label
-        )
-        instance_list.append(instance)
-
-    predictions = runner.process_instances(instance_list)
+    predictions = runner.process_text_list(examples)
     for pred in predictions:
         sent_1 = pred["sent_1"]
         sent_2 = pred["sent_2"]

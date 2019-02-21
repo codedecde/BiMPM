@@ -54,8 +54,9 @@ class QuoraParaphraseDatasetReader(DatasetReader):
         logger.info("Reading instances from lines in file at: %s", file_path)
         instances = []
         with open(cached_path(file_path), "r") as data_file:
-            tsv_in = csv.reader(data_file, delimiter='\t')
-            for row in Tqdm.tqdm(tsv_in):
+            # tsv_in = csv.reader(data_file, delimiter='\t')
+            for line in data_file:
+                row = line.split(u"\t")
                 if len(row) == 4:
                     instances.append(self.text_to_instance(
                         premise=row[1], hypothesis=row[2], label=row[0]))
