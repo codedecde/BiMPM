@@ -37,15 +37,19 @@ class BertEmbedder(TokenEmbedder):
     top_layer_only: ``bool``, optional (default = ``False``)
         If ``True``, then only return the top layer instead of apply the scalar mix.
     """
-    def __init__(self, bert_model: BertModel, top_layer_only: bool = False) -> None:
+    def __init__(
+        self, bert_model: BertModel,
+        top_layer_only: bool = False, for_classification: bool = False) -> None:
         super().__init__()
         self.bert_model = bert_model
         self.output_dim = bert_model.config.hidden_size
-        if not top_layer_only:
-            self._scalar_mix = ScalarMix(bert_model.config.num_hidden_layers,
-                                         do_layer_norm=False)
-        else:
-            self._scalar_mix = None
+        self.for_classification = for_classification
+        if not self.for_classification:
+            if not top_layer_only:
+                self._scalar_mix = ScalarMix(bert_model.config.num_hidden_layers,
+                                             do_layer_norm=False)
+            else:
+                self._scalar_mix = None
 
     def get_output_dim(self) -> int:
         return self.output_dim
@@ -88,29 +92,35 @@ class BertEmbedder(TokenEmbedder):
 
         # input_ids may have extra dimensions, so we reshape down to 2-d
         # before calling the BERT model and then reshape back at the end.
-        all_encoder_layers, _ = self.bert_model(input_ids=util.combine_initial_dims(input_ids),
-                                                token_type_ids=util.combine_initial_dims(token_type_ids),
-                                                attention_mask=util.combine_initial_dims(input_mask))
-        if self._scalar_mix is not None:
-            mix = self._scalar_mix(all_encoder_layers, input_mask)
+        
+        all_encoder_layers, classification_out = self.bert_model(
+            input_ids=util.combine_initial_dims(input_ids),
+            token_type_ids=util.combine_initial_dims(token_type_ids),
+            attention_mask=util.combine_initial_dims(input_mask)
+        )
+        if self.for_classification:
+            return classification_out
         else:
-            mix = all_encoder_layers[-1]
+            if self._scalar_mix is not None:
+                mix = self._scalar_mix(all_encoder_layers, input_mask)
+            else:
+                mix = all_encoder_layers[-1]
 
-        # At this point, mix is (batch_size * d1 * ... * dn, sequence_length, embedding_dim)
+            # At this point, mix is (batch_size * d1 * ... * dn, sequence_length, embedding_dim)
 
-        if offsets is None:
-            # Resize to (batch_size, d1, ..., dn, sequence_length, embedding_dim)
-            return util.uncombine_initial_dims(mix, input_ids.size())
-        else:
-            # offsets is (batch_size, d1, ..., dn, orig_sequence_length)
-            offsets2d = util.combine_initial_dims(offsets)
-            # now offsets is (batch_size * d1 * ... * dn, orig_sequence_length)
-            range_vector = util.get_range_vector(offsets2d.size(0),
-                                                 device=util.get_device_of(mix)).unsqueeze(1)
-            # selected embeddings is also (batch_size * d1 * ... * dn, orig_sequence_length)
-            selected_embeddings = mix[range_vector, offsets2d]
+            if offsets is None:
+                # Resize to (batch_size, d1, ..., dn, sequence_length, embedding_dim)
+                return util.uncombine_initial_dims(mix, input_ids.size())
+            else:
+                # offsets is (batch_size, d1, ..., dn, orig_sequence_length)
+                offsets2d = util.combine_initial_dims(offsets)
+                # now offsets is (batch_size * d1 * ... * dn, orig_sequence_length)
+                range_vector = util.get_range_vector(offsets2d.size(0),
+                                                     device=util.get_device_of(mix)).unsqueeze(1)
+                # selected embeddings is also (batch_size * d1 * ... * dn, orig_sequence_length)
+                selected_embeddings = mix[range_vector, offsets2d]
 
-            return util.uncombine_initial_dims(selected_embeddings, offsets.size())
+                return util.uncombine_initial_dims(selected_embeddings, offsets.size())
 
 
 @TokenEmbedder.register("bert-pretrained")
@@ -131,22 +141,32 @@ class PretrainedBertEmbedder(BertEmbedder):
     top_layer_only: ``bool``, optional (default = ``False``)
         If ``True``, then only return the top layer instead of apply the scalar mix.
     """
-    def __init__(self, pretrained_model: str, requires_grad: bool = False, top_layer_only: bool = False) -> None:
+    def __init__(
+        self, pretrained_model: str,
+        requires_grad: bool = False,
+        top_layer_only: bool = False,
+        for_classification: bool = False) -> None:
         model = BertModel.from_pretrained(pretrained_model)
 
         for param in model.parameters():
             param.requires_grad = requires_grad
 
-        super().__init__(bert_model=model, top_layer_only=top_layer_only)
+        super().__init__(
+            bert_model=model,
+            top_layer_only=top_layer_only,
+            for_classification=for_classification
+        )
 
     @classmethod
     def from_params(cls, vocab: Vocabulary, params: Params)->'PretrainedBertEmbedder':
         pretrained_model = params.pop("pretrained_model")
         requires_grad = params.pop("requires_grad", False)
         top_layer_only = params.pop("top_layer_only", False)
+        for_classification = params.pop("for_classification", False)
         params.assert_empty(cls.__name__)
         return cls(
             pretrained_model=pretrained_model,
             requires_grad=requires_grad,
-            top_layer_only=top_layer_only
+            top_layer_only=top_layer_only,
+            for_classification=for_classification
         )

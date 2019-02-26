@@ -640,6 +640,34 @@ class Trainer:
 
         return val_loss, batches_this_epoch
 
+    def test(self, instance_list: List[Instance]):
+        """A method to test easily
+        """
+        logger.info("Testing")
+        self._model.eval()
+        test_generator = self._iterator(
+            instance_list,
+            num_epochs=1,
+            cuda_device=self._iterator_device,
+            for_training=False
+        )
+        num_test_batches = self._iterator.get_num_batches(instance_list)
+        test_generator_tqdm = Tqdm.tqdm(test_generator, total=num_test_batches)
+
+        batches_this_epoch = 0
+        test_loss = 0
+        for batch in test_generator_tqdm:
+            loss = self._batch_loss(batch, for_training=False)
+            if loss is not None:
+                batches_this_epoch += 1
+                test_loss += loss.item()
+            # update metrics
+            test_metrics = self._get_metrics(test_loss, batches_this_epoch)
+            description = self._description_from_metrics(test_metrics)
+            test_generator_tqdm.set_description(description, refresh=False)
+
+        return test_loss, batches_this_epoch
+
     def train(self) -> Dict[str, Any]:
         """
         Trains the supplied model with the supplied parameters.

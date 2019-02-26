@@ -90,7 +90,7 @@ def main():
         logger.info("Length of {0}: {1}".format(
             "Testing Data", len(instances_test)))
 
-    # Construct Vocabulary
+    # Construct Vocabulary    
     vocab_size = config.pop("max_vocab_size", -1)
     logger.info("Constructing Vocab of size: {0}".format(vocab_size))
     vocab_size = None if vocab_size == -1 else vocab_size
@@ -101,7 +101,6 @@ def main():
     vocab_dir = os.path.join(serial_dir, "vocab")
     assert os.path.exists(vocab_dir), "Couldn't find the vocab directory"
     vocab.save_to_files(vocab_dir)
-
     logger.info("Saving vocab to {0}".format(vocab_dir))
     logger.info("Vocab Construction Done")
 
