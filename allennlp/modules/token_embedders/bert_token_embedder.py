@@ -122,55 +122,6 @@ class BertEmbedder(TokenEmbedder):
 
                 return util.uncombine_initial_dims(selected_embeddings, offsets.size())
 
-        @overrides
-        def state_dict(self, destination=None, prefix='', keep_vars=False):
-            r"""Returns a dictionary containing a whole state of the module.
-            Both parameters and persistent buffers (e.g. running averages) are
-            included. Keys are corresponding parameter and buffer names.
-            Returns:
-                dict:
-                    a dictionary containing a whole state of the module
-            Example::
-                >>> module.state_dict().keys()
-                ['bias', 'weight']
-
-            The reason we want to separate this from the usual pytorch one, is
-            for some reason, the HuggingFace LayerNorm uses weight and bias instead of
-            gamma and beta.
-            """
-            if destination is None:
-                destination = OrderedDict()
-                destination._metadata = OrderedDict()
-            destination._metadata[prefix[:-1]] = local_metadata = dict(version=self._version)
-            for name, param in self._parameters.items():
-                if param is not None:
-                    destination[prefix + name] = param if keep_vars else param.data
-            for name, buf in self._buffers.items():
-                if buf is not None:
-                    destination[prefix + name] = buf if keep_vars else buf.data
-            for name, module in self._modules.items():
-                if module is not None:
-                    module.state_dict(destination, prefix + name + '.', keep_vars=keep_vars)
-            for hook in self._state_dict_hooks.values():
-                hook_result = hook(self, destination, prefix, local_metadata)
-                if hook_result is not None:
-                    destination = hook_result
-            # This part is different
-            new_keys = []
-            old_keys = []
-            for key in destination.keys():
-                new_key = None
-                if "gamma" in key:
-                    new_key = key.replace("gamma", "weight")
-                if "beta" in key:
-                    new_key = key.replace("beta", "bias")
-                if new_key:
-                    old_keys.append(key)
-                    new_keys.append(new_key)
-            for old_key, new_key in zip(old_keys, new_keys):
-                destination[new_key] = destination.pop(old_key)
-            return destination
-
 
 @TokenEmbedder.register("bert-pretrained")
 class PretrainedBertEmbedder(BertEmbedder):

@@ -3,6 +3,7 @@ import os
 import torch
 import logging
 from collections import OrderedDict
+from overrides import overrides
 from typing import Optional, List, Dict, Any, Tuple
 
 from allennlp.common.tqdm import Tqdm
@@ -23,6 +24,7 @@ from allennlp.data.token_indexers \
 import pytorch_models.model as Models
 import pytorch_models.reader as Readers
 from pytorch_models.commons.utils import read_from_config_file
+from pytorch_models.reader.paraphrase_bert import SEP_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +92,9 @@ class BaseModelRunner(object):
         logger.info("Loading Model")
         model_state = torch.load(model_path,
                                  map_location=util.device_mapping(-1))
+
+        model_state = self._process_state_dict(model_state)
+    
         self._model.load_state_dict(model_state)
         logger.info("Model Loaded")
 
@@ -102,11 +107,19 @@ class BaseModelRunner(object):
         # This class is specifically for evaluation
         self._model.eval()
 
+    def _process_state_dict(self, model_state):
+        return model_state
+
     def get_reader(self):
         return self._reader
 
     def get_text_from_textfield(self, text_field_instance: TextField) -> List[str]:
         return [x.text for x in text_field_instance.tokens]
+
+    def get_premise_and_hypothesis(self, instance: Instance) -> Tuple[List[str], List[str]]:
+        premise = self.get_text_from_textfield(instance.fields["premise"])
+        hypothesis = self.get_text_from_textfield(instance.fields["hypothesis"])
+        return premise, hypothesis
 
     def process_instances(self, instances: List[Instance]):
         iterator_type = BasicIterator(batch_size=32)
@@ -129,12 +142,8 @@ class BaseModelRunner(object):
             output_dict = self._model.decode(self._model(**batch))
             for ix in range(len(output_dict["label"])):
                 prediction = OrderedDict()
-                prediction["sent_1"] = self.get_text_from_textfield(
-                    instances[index].fields["premise"]
-                )
-                prediction["sent_2"] = self.get_text_from_textfield(
-                    instances[index].fields["hypothesis"]
-                )
+                premise, hypothesis = self.get_premise_and_hypothesis(instances[index])
+                prediction["sent_1"], prediction["sent_2"] = " ".join(premise), " ".join(hypothesis)
                 gold_label = instances[index].fields["label"].label \
                     if "label" in instances[index].fields \
                     else ""
@@ -202,6 +211,44 @@ class BaseModelRunner(object):
             model_path=model_path,
             base_embed_dir=base_embed_dir
         )
+
+class BERTModelRunner(BaseModelRunner):
+    def __init__(self, *args, **kwargs):
+        super(BERTModelRunner, self).__init__(*args, **kwargs)
+
+    @overrides
+    def get_premise_and_hypothesis(self, instance):
+        SEPERATOR = SEP_TOKEN.text
+        premise = []
+        hypothesis = []
+        found_sep = False
+        text = self.get_text_from_textfield(instance.fields["input"])
+        for tok in text:
+            if tok == SEPERATOR:
+                found_sep = True
+            elif found_sep == False:
+                premise.append(tok)
+            else:
+                hypothesis.append(tok)
+        return premise, hypothesis
+
+    @overrides
+    def _process_state_dict(self, model_state):
+        new_keys = []
+        old_keys = []
+        for key in model_state.keys():
+            new_key = None
+            if "gamma" in key:
+                new_key = key.replace("gamma", "weight")
+            if "beta" in key:
+                new_key = key.replace("beta", "bias")
+            if new_key:
+                old_keys.append(key)
+                new_keys.append(new_key)
+        for old_key, new_key in zip(old_keys, new_keys):
+            model_state[new_key] = model_state.pop(old_key)
+
+        return model_state
 
 
 if __name__ == "__main__":
